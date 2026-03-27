@@ -347,10 +347,12 @@ def load_model(checkpoint_path: str) -> tuple:
         model_kwargs["pretrained"] = False
     model = get_model(arch, **model_kwargs).to(device).eval()
     model.load_state_dict(ckpt["model_state_dict"])
-    threshold = float(ckpt.get("threshold", 0.5))
-    epoch = ckpt.get("epoch", "?")
-    val_loss = ckpt.get("val_loss", None)
-    return model, device, threshold, arch, epoch, val_loss
+    threshold  = float(ckpt.get("threshold", 0.5))
+    val_recall = ckpt.get("val_recall", None)
+    val_f1     = ckpt.get("val_f1", None)
+    val_prec   = ckpt.get("val_precision", None)
+    val_acc    = ckpt.get("val_acc", None)
+    return model, device, threshold, arch, val_recall, val_f1, val_prec, val_acc
 
 
 def preprocess_image(pil_img: Image.Image) -> torch.Tensor:
@@ -523,48 +525,20 @@ if not checkpoint_file.exists():
 else:
     with st.spinner("⚡ Chargement du modèle..."):
         try:
-            model, device, ckpt_threshold, arch, epoch, val_loss = load_model(str(checkpoint_file))
-            # On respecte le seuil du checkpoint sauf si l'utilisateur l'a modifié
+            model, device, ckpt_threshold, arch, val_recall, val_f1, val_prec, val_acc = load_model(str(checkpoint_file))
             effective_threshold = threshold_override
             model_loaded = True
             model_info = {
                 "arch": arch,
                 "device": device,
-                "epoch": epoch,
-                "val_loss": val_loss,
+                "val_recall": val_recall,
+                "val_f1": val_f1,
+                "val_prec": val_prec,
+                "val_acc": val_acc,
                 "threshold": ckpt_threshold,
             }
         except Exception as e:
             st.error(f"❌ Erreur lors du chargement du modèle : {e}")
-
-# ── Indicateurs modèle ───────────────────────────────────────────────────────
-if model_loaded:
-    device_icon = "⚡ GPU" if model_info["device"] == "cuda" else "💻 CPU"
-    val_loss_str = f"{model_info['val_loss']:.4f}" if model_info["val_loss"] is not None else "—"
-    st.markdown(f"""
-    <div class="metric-row">
-      <div class="metric-card">
-        <div class="metric-value" style="color:#38bdf8">{model_info['arch'].upper()}</div>
-        <div class="metric-label">Architecture</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-value" style="color:#818cf8">{model_info['epoch']}</div>
-        <div class="metric-label">Époque sauvegardée</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-value" style="color:#06b6d4">{val_loss_str}</div>
-        <div class="metric-label">Val Loss</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-value" style="color:#f59e0b; font-size:1.3rem">{device_icon}</div>
-        <div class="metric-label">Matériel</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-value" style="color:#10b981">{effective_threshold:.2f}</div>
-        <div class="metric-label">Seuil actif</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 st.markdown("---")
 
